@@ -9,9 +9,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
 
-    window.login = function () {
-        alert("تسجيل الدخول في فيديانا قيد التطوير.");
-    };
+    
 
     function getValue(id) {
         var element = document.getElementById(id);
