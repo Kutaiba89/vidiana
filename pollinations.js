@@ -218,3 +218,201 @@ ${category}
 
 Visual style:
 ${style}
+
+
+Language:
+${language}
+
+The video should be visually attractive,
+coherent, cinematic, detailed and suitable
+for the requested idea.
+No subtitles unless specifically requested.
+`;
+  }
+
+  // ==============================
+  // عرض الفيديو
+  // ==============================
+
+  function showVideo(blob) {
+    const result = document.getElementById("result");
+    const resultText = document.getElementById("resultText");
+
+    const url = URL.createObjectURL(blob);
+
+    if (resultText) {
+      resultText.textContent = "تم إنشاء الفيديو بنجاح 🎬";
+    }
+
+    if (result) {
+      result.innerHTML = "";
+
+      const video = document.createElement("video");
+
+      video.controls = true;
+      video.autoplay = false;
+      video.playsInline = true;
+
+      video.style.width = "100%";
+      video.style.maxWidth = "720px";
+      video.style.borderRadius = "15px";
+      video.style.marginTop = "15px";
+
+      video.src = url;
+
+      const download = document.createElement("a");
+
+      download.href = url;
+      download.download = "vidiana-video.mp4";
+      download.textContent = "⬇️ تحميل الفيديو";
+
+      download.style.display = "inline-block";
+      download.style.marginTop = "15px";
+      download.style.padding = "12px 20px";
+      download.style.borderRadius = "10px";
+      download.style.textDecoration = "none";
+      download.style.background = "#ffffff";
+      download.style.color = "#000000";
+      download.style.fontWeight = "bold";
+
+      result.appendChild(video);
+      result.appendChild(document.createElement("br"));
+      result.appendChild(download);
+    }
+  }
+
+  // ==============================
+  // إنشاء الفيديو
+  // ==============================
+
+  async function generateWithPollinations(event) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const token = sessionStorage.getItem(TOKEN_KEY);
+
+    if (!token) {
+      alert("يجب تسجيل الدخول أولًا إلى محرك فيديانا.");
+      login();
+      return;
+    }
+
+    let prompt;
+
+    try {
+      prompt = buildPrompt();
+    } catch (error) {
+      if (error.message === "NO_IDEA") {
+        alert("اكتب فكرة الفيديو أولًا.");
+        return;
+      }
+
+      alert("تعذر تجهيز طلب الفيديو.");
+      return;
+    }
+
+    const resultText = document.getElementById("resultText");
+
+    if (resultText) {
+      resultText.textContent =
+        "جاري إنشاء الفيديو بالذكاء الاصطناعي... ⏳";
+    }
+
+    try {
+      const url =
+        VIDEO_URL +
+        encodeURIComponent(prompt) +
+        "?model=veo&duration=4";
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer " + token
+        }
+      });
+
+      if (response.status === 401) {
+        sessionStorage.removeItem(TOKEN_KEY);
+
+        alert(
+          "انتهت صلاحية تسجيل الدخول. سيتم تسجيل الدخول مرة أخرى."
+        );
+
+        login();
+        return;
+      }
+
+      if (response.status === 402) {
+        if (resultText) {
+          resultText.textContent =
+            "الرصيد غير كافٍ لإنشاء الفيديو.";
+        }
+
+        alert("الرصيد غير كافٍ لإنشاء الفيديو حاليًا.");
+        return;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+
+        console.error(
+          "Video generation error:",
+          errorText
+        );
+
+        throw new Error("Video generation failed");
+      }
+
+      const blob = await response.blob();
+
+      if (!blob || blob.size === 0) {
+        throw new Error("Empty video response");
+      }
+
+      showVideo(blob);
+
+    } catch (error) {
+      console.error(error);
+
+      if (resultText) {
+        resultText.textContent =
+          "حدث خطأ أثناء إنشاء الفيديو.";
+      }
+
+      alert("حدث خطأ أثناء إنشاء الفيديو.");
+    }
+  }
+
+  // ==============================
+  // تشغيل النظام
+  // ==============================
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+      handleCallback();
+
+      // تشغيل زر تسجيل الدخول الجديد
+      const loginButton =
+        document.querySelector(".login-btn");
+
+      if (loginButton) {
+        loginButton.addEventListener("click", login);
+      }
+
+      const form =
+        document.getElementById("videoForm");
+
+      if (form) {
+        form.addEventListener(
+          "submit",
+          generateWithPollinations,
+          true
+        );
+      }
+
+    }
+  );
+
+})();
