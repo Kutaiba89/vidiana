@@ -1,258 +1,95 @@
 (function () {
     "use strict";
 
-    // ==========================================
-    // فيديانا 🎬
-    // محرك الفيديو: LTX 2.3 - Hugging Face
-    // ==========================================
-
-    const SPACE_URL =
-        "https://upsampler-ltx-video.hf.space";
-
-
-    // ==========================================
-    // إنشاء الفيديو
-    // ==========================================
+    const API_URL =
+        "https://vidiana-api.qutaibalaila89.workers.dev";
 
     async function generateVideo(event) {
-
         if (event) {
             event.preventDefault();
             event.stopImmediatePropagation();
         }
 
-        const result =
-            document.getElementById("result");
-
-        const button =
-            document.querySelector(
-                '#videoForm button[type="submit"]'
-            );
-
-
-        // إظهار النتيجة فورًا
-        if (result) {
-
-            result.style.display = "block";
-            result.hidden = false;
-
-            result.innerHTML =
-                "<p>🎬 جاري الاتصال بمحرك الفيديو...</p>" +
-                "<p style='font-size:14px;opacity:.8;'>" +
-                "يرجى الانتظار..." +
-                "</p>";
-        }
-
-
-        // تغيير الزر أثناء العمل
-        if (button) {
-
-            button.disabled = true;
-
-            button.style.opacity = "0.65";
-
-            button.textContent =
-                "⏳ جاري إنشاء الفيديو...";
-        }
-
+        const result = document.getElementById("result");
+        const button = document.querySelector(
+            '#videoForm button[type="submit"]'
+        );
 
         try {
-
-            // ==========================================
-            // قراءة فكرة الفيديو
-            // ==========================================
-
-            const idea =
-                document.getElementById("idea");
+            const idea = document.getElementById("idea");
 
             if (!idea || !idea.value.trim()) {
-
-                throw new Error(
-                    "اكتب فكرة الفيديو أولًا."
-                );
+                throw new Error("اكتب فكرة الفيديو أولًا.");
             }
 
-
-            let prompt =
-                idea.value.trim();
-
-
-            // ==========================================
-            // إضافة الاختيارات
-            // ==========================================
+            let prompt = idea.value.trim();
 
             const category =
                 document.getElementById("category");
-
             const style =
                 document.getElementById("style");
-
             const language =
                 document.getElementById("language");
 
+            if (category && category.value)
+                prompt += ". Category: " + category.value;
 
-            if (category && category.value) {
+            if (style && style.value)
+                prompt += ". Style: " + style.value;
 
-                prompt +=
-                    ". Category: " +
-                    category.value;
-            }
-
-
-            if (style && style.value) {
-
-                prompt +=
-                    ". Style: " +
-                    style.value;
-            }
-
-
-            if (language && language.value) {
-
-                prompt +=
-                    ". Language: " +
-                    language.value;
-            }
-
-
-            // ==========================================
-            // رسالة الانتظار
-            // ==========================================
+            if (language && language.value)
+                prompt += ". Language: " + language.value;
 
             if (result) {
-
+                result.style.display = "block";
                 result.innerHTML =
-                    "<p>🎬 جاري إنشاء الفيديو الآن...</p>" +
-                    "<p style='font-size:14px;opacity:.8;'>" +
-                    "محرك الذكاء الاصطناعي يعمل، " +
-                    "لا تغلق الصفحة." +
-                    "</p>";
+                    "<p>🎬 جاري إنشاء الفيديو...</p>" +
+                    "<p>يرجى الانتظار وعدم إغلاق الصفحة.</p>";
             }
 
-
-            // ==========================================
-            // تحميل Gradio Client
-            // ==========================================
-
-            const module =
-                await import(
-                    "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js"
-                );
-
-
-            const Client =
-                module.Client;
-
-
-            if (!Client) {
-
-                throw new Error(
-                    "تعذر تحميل محرك الاتصال."
-                );
+            if (button) {
+                button.disabled = true;
+                button.textContent = "⏳ جاري الإنشاء...";
             }
 
-
-            // ==========================================
-            // الاتصال بمحرك LTX
-            // ==========================================
-
-            const app =
-                await Client.connect(
-                    SPACE_URL
-                );
-
-
-            // ==========================================
-            // إرسال الطلب
-            // ==========================================
-
-            const response =
-                await app.predict(
-                    "/generate_video",
-                    [
-                        null,
-                        prompt,
-                        3,
-                        false,
-                        42,
-                        true,
-                        512,
-                        768
-                    ]
-                );
-
-
-            console.log(
-                "Vidiana API response:",
-                response
+            const response = await fetch(
+                API_URL + "/generate-video",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        duration: 3
+                    })
+                }
             );
 
+            const data = await response.json();
 
-            // ==========================================
-            // استخراج الفيديو
-            // ==========================================
-
-            const videoData =
-                findVideoData(response);
-
-
-            if (!videoData) {
-
+            if (!response.ok)
                 throw new Error(
-                    "تمت الاستجابة من المحرك، " +
-                    "لكن لم يتم العثور على ملف الفيديو."
+                    data.error || "فشل إرسال الطلب."
                 );
-            }
 
-
-            let videoUrl =
-                videoData.url ||
-                videoData.path ||
-                videoData;
-
-
-            if (typeof videoUrl !== "string") {
-
+            if (!data.event_id)
                 throw new Error(
-                    "تعذر قراءة رابط الفيديو."
+                    "لم يصل رقم عملية الفيديو."
                 );
-            }
 
+            if (result)
+                result.innerHTML =
+                    "<p>⏳ المحرك يعمل الآن...</p>" +
+                    "<p>جاري تجهيز الفيديو.</p>";
 
-            // ==========================================
-            // تحويل الرابط النسبي
-            // ==========================================
-
-            if (
-                videoUrl.startsWith("/")
-            ) {
-
-                videoUrl =
-                    SPACE_URL +
-                    videoUrl;
-            }
-
-
-            // ==========================================
-            // عرض الفيديو
-            // ==========================================
+            const videoUrl =
+                await getVideo(data.event_id);
 
             if (result) {
-
-                result.style.display =
-                    "block";
-
                 result.innerHTML = `
-
-                    <div
-                        style="
-                            text-align:center;
-                        "
-                    >
-
-                        <p>
-                            ✅ تم إنشاء الفيديو بنجاح!
-                        </p>
+                    <div style="text-align:center">
+                        <p>✅ تم إنشاء الفيديو بنجاح!</p>
 
                         <video
                             controls
@@ -263,15 +100,13 @@
                                 border-radius:15px;
                                 background:#000;
                             "
-                            src="${videoUrl}"
-                        >
+                            src="${videoUrl}">
                         </video>
 
-                        <br>
-                        <br>
+                        <br><br>
 
                         <a
-                            href="${videoUrl}"
+                            href="${videoUrl}"٧
                             target="_blank"
                             rel="noopener"
                             style="
@@ -281,136 +116,137 @@
                                 background:#6d3df5;
                                 color:white;
                                 text-decoration:none;
-                            "
-                        >
+                            ">
                             🎬 فتح الفيديو
                         </a>
-
                     </div>
                 `;
             }
 
-
         } catch (error) {
 
-            console.error(
-                "Vidiana error:",
-                error
-            );
-
-
-            // ==========================================
-            // عرض الخطأ للمستخدم
-            // ==========================================
+            console.error("Vidiana:", error);
 
             if (result) {
-
-                result.style.display =
-                    "block";
-
+                result.style.display = "block";
                 result.innerHTML =
-
-                    "<p>❌ تعذر إنشاء الفيديو حاليًا.</p>" +
-
-                    "<p style='" +
-                    "font-size:14px;" +
-                    "opacity:.8;" +
-                    "direction:ltr;" +
-                    "word-break:break-word;" +
-                    "'>" +
-
-                    (
-                        error.message ||
-                        "حدث خطأ غير معروف."
-                    ) +
-
+                    "<p>❌ تعذر إنشاء الفيديو.</p>" +
+                    "<p>" +
+                    (error.message || "حدث خطأ.") +
                     "</p>";
             }
 
-
         } finally {
 
-            // ==========================================
-            // إعادة الزر لوضعه الطبيعي
-            // ==========================================
-
             if (button) {
-
                 button.disabled = false;
-
-                button.style.opacity = "1";
-
-                button.textContent =
-                    "🚀 إنشاء الفيديو";
+                button.textContent = "🚀 إنشاء الفيديو";
             }
         }
     }
 
+    async function getVideo(eventId) {
 
+    const response = await fetch(
+        API_URL +
+        "/generate-video?event_id=" +
+        encodeURIComponent(eventId)
+    );
 
-    // ==========================================
-    // البحث عن ملف الفيديو
-    // ==========================================
+    if (!response.ok)
+        throw new Error(
+            "تعذر متابعة إنشاء الفيديو."
+        );
 
-    function findVideoData(value) {
+    const reader =
+        response.body.getReader();
 
-        if (!value) {
-            return null;
+    const decoder =
+        new TextDecoder();
+
+    let buffer = "";
+
+    while (true) {
+
+        const { value, done } =
+            await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value);
+
+        const events =
+            buffer.split("\n\n");
+
+        buffer = events.pop();
+
+        for (const event of events) {
+
+            for (const line of event.split("\n")) {
+
+                if (!line.startsWith("data:"))
+                    continue;
+
+                const text =
+                    line.slice(5).trim();
+
+                if (!text || text === "[DONE]")
+                    continue;
+
+                try {
+
+                    const data =
+                        JSON.parse(text);
+
+                    const video =
+                        findVideo(data);
+
+                    if (video) {
+                        return video.url ||
+                            video.path ||
+                            video;
+                    }
+
+                } catch (_) {}
+            }
         }
+    }
 
+    throw new Error(
+        "لم يتم العثور على ملف الفيديو."
+    );
+}    function findVideo(value) {
 
-        // ملف مباشر
+        if (!value) return null;
+
         if (
             typeof value === "object" &&
-            (
-                value.url ||
-                value.path
-            )
+            (value.url || value.path)
         ) {
-
             return value;
         }
 
-
-        // مصفوفة
         if (Array.isArray(value)) {
 
-            for (
-                const item of value
-            ) {
+            for (const item of value) {
 
-                const found =
-                    findVideoData(item);
+                const found = findVideo(item);
 
-                if (found) {
-                    return found;
-                }
+                if (found) return found;
             }
         }
 
+        if (typeof value === "object") {
 
-        // كائن
-        if (
-            typeof value === "object"
-        ) {
-
-            for (
-                const key in value
-            ) {
+            for (const key in value) {
 
                 const found =
-                    findVideoData(
-                        value[key]
-                    );
+                    findVideo(value[key]);
 
-                if (found) {
-                    return found;
-                }
+                if (found) return found;
             }
         }
 
-
-        // رابط فيديو
         if (
             typeof value === "string" &&
             (
@@ -419,38 +255,24 @@
                 value.includes("file=")
             )
         ) {
-
             return value;
         }
-
 
         return null;
     }
 
 
-
-    // ==========================================
-    // تشغيل فيديانا
-    // ==========================================
-
     document.addEventListener(
         "DOMContentLoaded",
         function () {
-
-            const form =
-                document.getElementById(
-                    "videoForm"
-                );
-
 
             const button =
                 document.querySelector(
                     '#videoForm button[type="submit"]'
                 );
 
-
-            // ربط الزر مباشرة
-            // لتجنب تعارض app.js
+            const form =
+                document.getElementById("videoForm");
 
             if (button) {
 
@@ -469,20 +291,12 @@
                 );
             }
 
+            const login =
+                document.querySelector(".login-btn");
 
-            // إخفاء تسجيل الدخول
-            const loginButton =
-                document.querySelector(
-                    ".login-btn"
-                );
-
-
-            if (loginButton) {
-
-                loginButton.style.display =
-                    "none";
+            if (login) {
+                login.style.display = "none";
             }
-
         }
     );
 
