@@ -54,7 +54,9 @@ export default {
 
         const body = await request.json();
         const prompt = String(body.prompt || "").trim();
-
+const targetDuration =
+  Number(body.targetDuration || 60);
+        console.log("Vidiana targetDuration:", targetDuration);
         if (!prompt) {
           return json({
             error: "الرجاء إدخال وصف للفيديو"
