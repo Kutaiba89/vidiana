@@ -19,7 +19,6 @@ function json(data, status = 200) {
 
 export default {
   async fetch(request, env) {
-
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -37,31 +36,24 @@ export default {
     }
 
     if (url.pathname !== "/generate-video") {
-      return json({
-        error: "Endpoint not found"
-      }, 404);
+      return json({ error: "Endpoint not found" }, 404);
     }
 
     if (!env.HF_TOKEN) {
-      return json({
-        error: "HF_TOKEN غير مضاف"
-      }, 500);
+      return json({ error: "HF_TOKEN غير مضاف" }, 500);
     }
 
     try {
-
       if (request.method === "POST") {
-
         const body = await request.json();
         const prompt = String(body.prompt || "").trim();
-const targetDuration =
-  Number(body.targetDuration || 60);
-        console.log("Vidiana targetDuration:", targetDuration);
+        const targetDuration = Number(body.targetDuration || 60);
+
         if (!prompt) {
-          return json({
-            error: "الرجاء إدخال وصف للفيديو"
-          }, 400);
+          return json({ error: "الرجاء إدخال وصف للفيديو" }, 400);
         }
+
+        console.log("Vidiana targetDuration:", targetDuration);
 
         const response = await fetch(
           `${HF}/gradio_api/call/generate_video`,
@@ -86,4 +78,56 @@ const targetDuration =
           }
         );
 
-        const text = await
+        const text = await response.text();
+
+        if (!response.ok) {
+          return new Response(text, {
+            status: response.status,
+            headers: headers(response.headers.get("content-type") || "application/json")
+          });
+        }
+
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (_) {
+          return json({ error: "استجابة غير صالحة من محرك الفيديو" }, 502);
+        }
+
+        return json(data, response.status);
+      }
+
+      if (request.method === "GET") {
+        const eventId = url.searchParams.get("event_id");
+
+        if (!eventId) {
+          return json({ error: "event_id مطلوب" }, 400);
+        }
+
+        const response = await fetch(
+          `${HF}/gradio_api/call/generate_video/${encodeURIComponent(eventId)}`,
+          {
+            headers: {
+              "Authorization": `Bearer ${env.HF_TOKEN}`
+            }
+          }
+        );
+
+        return new Response(response.body, {
+          status: response.status,
+          headers: headers(
+            response.headers.get("content-type") || "text/event-stream"
+          )
+        });
+      }
+
+      return json({ error: "Method not allowed" }, 405);
+    } catch (error) {
+      console.error("Vidiana Worker:", error);
+      return json(
+        { error: error && error.message ? error.message : "حدث خطأ في الخادم" },
+        500
+      );
+    }
+  }
+};
