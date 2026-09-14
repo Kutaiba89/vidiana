@@ -30,7 +30,11 @@
                 document.getElementById("style");
             const language =
                 document.getElementById("language");
+const duration =
+    document.getElementById("duration");
 
+const targetDuration =
+    Number(duration?.value || 60);
             if (category && category.value)
                 prompt += ". Category: " + category.value;
 
@@ -61,7 +65,8 @@
                     },
                     body: JSON.stringify({
                         prompt: prompt,
-                        duration: 3
+                        duration: 3,
+                            targetDuration: targetDuration
                     })
                 }
             );
